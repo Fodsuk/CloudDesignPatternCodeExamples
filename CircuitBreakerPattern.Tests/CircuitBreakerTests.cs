@@ -23,40 +23,52 @@ namespace CircuitBreakerPattern.Tests
         }
 
         [TestMethod]
-        public void ExecuteAction_FailedCall_BreakerTrip()
+        public void ExecuteAction_FailedCall_BreakerTripAtStages()
         {
-            var state = new CircultBreakerState();
+            var breaker = new CircultBreaker(new CircultBreakerState());
+            breaker.ResetBreakerTime = new TimeSpan(0, 0, 5);
 
-            var breaker = new CircultBreaker(state);
-
-            try
-            {
-                breaker.ExecuteAction(CallFailedExternalService);
-            }
-            catch(Exception) {}
-
-            Thread.Sleep(3000);
+            Assert.AreEqual(CircuitBreakerCondition.Closed, breaker.State.Condition);
 
             try
             {
                 breaker.ExecuteAction(CallFailedExternalService);
             }
-            catch (Exception) { }
-
-            Thread.Sleep(3000);
+            catch(Exception) { /* Naughty Naughty */ }
+            
+            Assert.AreEqual(CircuitBreakerCondition.HalfOpen, breaker.State.Condition);
 
             try
             {
                 breaker.ExecuteAction(CallFailedExternalService);
-            } catch (Exception) { }
+            }
+            catch (Exception) { /* Naughty Naughty */ }
+
+            Assert.AreEqual(CircuitBreakerCondition.Open, breaker.State.Condition);
+
+
+
+            //Wait the amount of time for the breaker to reset
+            Thread.Sleep(breaker.ResetBreakerTime);
+
+            try
+            {
+                breaker.ExecuteAction(CallWorkingExternalService);
+            }
+            catch (Exception) { /* Naughty Naughty */ }
+
+
+            Assert.AreEqual(CircuitBreakerCondition.Closed, breaker.State.Condition);
         }
+
+        
 
         private void CallWorkingExternalService()
         {
             //Call bbc/football API for the latest Arsenal Scores!
         }
 
-
+        
         private void CallFailedExternalService()
         {
             throw new InvalidCredentialException();

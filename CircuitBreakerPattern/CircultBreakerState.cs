@@ -5,25 +5,21 @@ using System.Text;
 
 namespace CircuitBreakerPattern
 {
-    public interface ICircuitBreakerState
+    public enum CircuitBreakerCondition
     {
-        bool Open { get; set; }
-
-        DateTime? LastTripped { get; set; }
-
-        Exception LastException { get; set; }
-
-        void Reset();
-
-        void Trip(Exception exception);
-
-        bool OpenForLongerThan(TimeSpan timeSpan);
-
+        Closed,
+        HalfOpen,
+        Open,
     }
 
     public class CircultBreakerState : ICircuitBreakerState
     {
-        public bool Open { get; set; }
+        public CircultBreakerState()
+        {
+            Reset();
+        }
+
+        public CircuitBreakerCondition Condition { get; set; }
 
         public DateTime? LastTripped { get; set; }
 
@@ -31,7 +27,7 @@ namespace CircuitBreakerPattern
 
         public void Reset()
         {
-            Open = false;
+            Condition = CircuitBreakerCondition.Closed;
         }
 
         public void Trip(Exception exception)
@@ -39,7 +35,10 @@ namespace CircuitBreakerPattern
             LastException = exception;
             LastTripped = DateTime.Now;
 
-            Open = true;
+            if (Condition == CircuitBreakerCondition.HalfOpen)
+                Condition = CircuitBreakerCondition.Open; //Dam Dog! we're really are down!
+            else
+                Condition = CircuitBreakerCondition.HalfOpen;
         }
 
         public bool OpenForLongerThan(TimeSpan timeSpan)

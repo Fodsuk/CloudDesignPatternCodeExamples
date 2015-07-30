@@ -4,53 +4,55 @@ namespace CircuitBreakerPattern
 {
     public class CircultBreaker
     {
-        /*
-         To Consider:
-         *  Retry
-         *  State per action (some open, some closed)  
-         */
+        private readonly ICircuitBreakerState _state;
+        private TimeSpan _resetBreakerTime = new TimeSpan(0 , 1, 0);
 
-        private readonly ICircuitBreakerState _store;
-
-        public CircultBreaker(ICircuitBreakerState store)
+        public CircultBreaker(ICircuitBreakerState state)
         {
-            _store = store;
+            _state = state;
         }
+
+        public ICircuitBreakerState State {get { return _state; }}
+
+        public TimeSpan ResetBreakerTime { get { return _resetBreakerTime; } set { _resetBreakerTime = value; }}
 
         public void ExecuteAction(Action action)
         {
-            if (_store.Open)
+            switch (_state.Condition)
             {
-                //Should we give it another go?
-                if (_store.OpenForLongerThan(new TimeSpan(0, 10, 2)))
-                {
-                    try
-                    {
-                        action();
-                    }
-                    catch (Exception e)
-                    {
-                        _store.Trip(e);
+                case CircuitBreakerCondition.Closed:
+                case CircuitBreakerCondition.HalfOpen:
+                    AttemptAction(action);
+                    break;
 
-                        throw;
-                    }
-                }
-            }
-            else
-            {
-
-                try
-                {
-                    action();
-                }
-                catch (Exception e)
-                {
-                    _store.Trip(e);
-
-                    throw;
-                }
+                case CircuitBreakerCondition.Open:
+                    ConsiderRetry(action);
+                    break;
             }
         }
 
+        private void ConsiderRetry(Action action)
+        {
+            if (_state.OpenForLongerThan(ResetBreakerTime))
+            {
+                AttemptAction(action);
+
+                _state.Reset(); //working again!
+            }
+        }
+
+        private void AttemptAction(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception e)
+            {
+                _state.Trip(e);
+
+                throw;
+            }
+        }
     }
 }
